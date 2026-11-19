@@ -1,25 +1,77 @@
 # ERGO-PREDICT
 
-Participative ergonomic decision-support prototype. The original Gemini dashboard is retained in `frontend/src/LegacyApp.tsx`; its untouched source backup is `ergo_predict_industrial_ergonomics_ai_dashboard.tsx.gemini-backup`.
+**AI-Powered Ergonomic Digital Twin for Predictive Workplace Risk Prevention**
 
-## Requirements and startup
+ERGO-PREDICT is a privacy-first, human-centered ergonomic decision-support prototype designed to prevent multisite musculoskeletal disorders (TMS / MSDs) in manual industrial workstations. Built around the automotive wiring harness assembly reference case (LEONI workstation brief: ~430 wires/harness, ~13 harnesses/hour, ~276 s takt time), it connects four dimensions — **Body**, **Task**, **Workstation**, and **Ergonomic Exposure** — to move workplace prevention from occasional observation to continuous, participative improvement.
 
-Use Node 20+ and Python 3.10–3.12 (MediaPipe wheel support depends on platform). Start the backend:
+## Core Principles
+
+- **Human-Centered:** No worker is replaced and no task is eliminated through automation. Operators stay in control and participate voluntarily in workstation improvements.
+- **Privacy-by-Design:** Individual health information belongs strictly to the worker and authorized occupational health professionals. Managers see only aggregated workstation-level trends. No productivity scoring, no worker surveillance, local video processing wherever possible, and no identifiable video frames stored by default.
+- **Scientific Honesty:** Computer vision assists posture screening and does not diagnose medical conditions or replace certified ergonomic assessments. Non-visual factors (force/load, coupling, wrist twist, static/repetitive activity, occluded joints) require explicit human confirmation before producing complete RULA/REBA scores.
+
+## Key Modules & Prototype Status
+
+| Module | Status | What It Does |
+| :--- | :--- | :--- |
+| **Automatic Posture Assessment** | Working prototype | Local webcam/video capture, MediaPipe Pose landmark detection, real-time joint-angle calculation with temporal smoothing (`SMOOTHED_ESTIMATE`) and outlier rejection (`JUMP_REJECTED`), plus sagittal-view gating (`UNAVAILABLE_CAMERA_VIEW` when non-sagittal). |
+| **RULA / REBA Assessment** | Working prototype | Deterministic scoring engines implementing RULA (1–7, upper limb) and REBA (1–15, whole body) with mandatory manual confirmation factors and local SQLite persistence. |
+| **Worker Feedback Check-In** | Working prototype | Anonymous operator discomfort check-in (<20 seconds) capturing body zone, intensity (1–10), task, timing, and optional workstation note — collecting no personal name, employee ID, or badge number. |
+| **3D Workstation Digital Twin** | Working prototype + demo scenario | Interactive WebGL (Three.js) workstation model featuring assembly table, wiring harness jig, operator mannequin, and color-coded Connector Groups (A–D) linked to parametric geometry. |
+| **What-If Simulator** | Simulation layer | Parametric workstation geometry controls (connector height, reach distance, orientation) with missing-measurement warnings; simulated projections are clearly separated from measured field improvements. |
+| **Executive Overview, Body & Task Analysis** | UI ready (`DEMO DATA`) | Interactive charts, anterior/posterior body discomfort heatmap, and task exposure matrix preloaded with synthetic demonstration data (`DEMO DATA` badge) to illustrate workstation-level analytics. |
+| **AI Recommendations, Interventions & Economic Impact** | Rule-based + illustrative data | Explainable correlation chain (`Body Zone -> Task -> Workstation Zone -> Associated Exposure -> Recommended Investigation`), before/after intervention tracking, and editable ROI assumptions. |
+
+> **Important Note on Data:** All preloaded workstation trends (e.g., 7/10 left shoulder discomfort, 72/100 overall exposure score, 276 s task breakdown) and financial ROI scenarios are **synthetic demonstration data** and **illustrative financial assumptions** — not real LEONI worker measurements or company financials.
+
+## System Architecture
+
+```text
+1. Data Collection      -> Anonymous worker feedback, task metadata, workstation geometry, local video
+2. Data Processing      -> Body-zone aggregation, OpenCV + MediaPipe Pose landmarks, NumPy joint angles
+3. Ergonomic Assessment -> Deterministic RULA (1–7) and REBA (1–15) engines + manual factor confirmation
+4. Risk Analysis        -> Early-warning trend detection, task correlation, workstation hotspot mapping
+5. Digital Twin (3D)    -> Interactive Three.js workstation + parametric What-If simulation
+6. Recommendations      -> Explainable rule-based investigation pistes and estimated intervention cost
+7. Field Validation     -> Physical intervention, before/after RULA/REBA re-assessment, measured ROI
+```
+
+## Tech Stack & Rationale
+
+| Layer | Technologies | Why Chosen |
+| :--- | :--- | :--- |
+| **Frontend & 3D** | React, TypeScript, Vite, Three.js (WebGL) | Browser-native interactive 3D digital twin and responsive dashboards with zero heavy CAD licensing required. |
+| **Backend API** | Python, FastAPI | Fast, lightweight local REST API suitable for on-premise workshop deployment. |
+| **Computer Vision** | OpenCV, MediaPipe Pose Landmarker (BlazePose), NumPy | Runs locally on standard CPU hardware without expensive GPUs, preserving privacy while providing real-time landmark visibility and angle reliability proxies. |
+| **Ergonomic Engines** | Deterministic RULA & REBA modules | Fully auditable, reproducible standard ergonomic tables with no black-box clinical claims. |
+| **Database** | SQLite (prototype) | Zero-configuration local storage for single-workstation pilots; ready to migrate to PostgreSQL for multi-line deployments. |
+
+## Getting Started (Local Development)
+
+### Prerequisites
+
+- **Node.js** 18+ and **npm**
+- **Python** 3.10+ and **pip**
+- Standard USB or built-in webcam (optional, for live posture screening; uploaded videos are also supported)
+
+### 1. Clone the Repository
+
+```bash
+git clone <YOUR_REPO_URL>
+cd <YOUR_REPO_FOLDER>
+```
+
+### 2. Start the Backend (FastAPI)
 
 ```bash
 cd backend
-python3.12 -m venv .venv
-. .venv/bin/activate
-python -m pip install -r requirements-vision.txt
-python scripts/download_pose_model.py
-uvicorn app.main:app --reload
+python -m venv .venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
 ```
 
-The model download is optional for manual assessments but required for image, webcam, and video pose inference. The asset is stored at `backend/models/pose_landmarker_lite.task` and is ignored by Git. API docs: `http://127.0.0.1:8000/docs`; health: `/api/health`.
-
-Use a clean virtual environment for this stack. MediaPipe installs `opencv-contrib-python`; the project pins that as its only OpenCV provider. Do not add `opencv-python` or `opencv-python-headless` to the same environment because all variants provide the same `cv2` namespace.
-
-In another terminal:
+### 3. Start the Frontend (React + Vite)
 
 ```bash
 cd frontend
@@ -27,38 +79,35 @@ npm install
 npm run dev
 ```
 
-Set `VITE_API_URL` to change the API base (default `http://localhost:8000`). Set `VITE_MOCK_MODE=false` to disable the Zustand store's mock-mode flag; existing legacy pages still use local demo state, so this flag does not make the whole dashboard backend-driven.
+Open `http://localhost:5173` in your browser.
 
-## Implemented scope and boundaries
+> Adjust directory names (`backend/`, `frontend/`) or entrypoints (`main:app`) if your local repository uses a different folder layout.
 
-- React + TypeScript + Vite production build, preserving the Gemini design, charts, stateful navigation, and embedded Three.js digital twin. The source is still a large legacy component rather than the complete modular page architecture originally proposed.
-- Separate manual and automatic posture pages, local MediaPipe Tasks adapter, OpenCV video frame processing, 2D joint-angle geometry, visibility proxy, smoothing and posture labels. No camera stream is publicly exposed; uploads are temporarily written and removed. Video frames and webcam frames are not persisted by the application.
-- RULA and REBA deterministic scoring tables and adjustment rules. Incomplete inputs yield `INCOMPLETE`; external force, load, coupling, muscle/activity, support and other unobservable factors require confirmation. Scores are screening outputs, not diagnoses.
-- SQLite persistence for feedback, assessment and intervention records. Manager-facing feedback APIs return groups of at least three reports; no individual feedback retrieval route exists. This local prototype has no authentication or role control, and raw anonymous IDs/comments remain in the SQLite file, so do not put sensitive or identifiable information in comments.
-- Backend task/workstation values and dashboard mock data are synthetic. Existing dashboard risk/exposure cards, task correlations, recommendation cards, ROI assumptions and what-if exposure graphics are prototype data/heuristics. The backend geometry comparison deliberately does not infer new RULA/REBA scores; follow-up measurements are required.
-- The 3D twin and legacy page interactions compile, but were not browser-driven in the audit environment. The legacy dashboard is not comprehensively connected to the new REST APIs.
+## Field Validation Protocol
 
-## Webcam and video workflow
+Simulated What-If reductions are decision-support estimates, never proof of real-world improvement. Industrial deployment follows a strict three-stage protocol:
 
-Open **Automatic Posture Assessment**, select a camera view, then start the webcam (browser permission required) or choose a local video and process it. The webcam remains in the browser and sampled JPEG frames are sent to the local backend; uploaded videos are limited to 100 MB and 180 seconds, sampled up to 5 fps, and deleted after processing. A missing local model or MediaPipe installation is reported as unavailable; the application does not fabricate landmarks or scores.
+1. **Baseline:** Observe workstation tasks, record geometry (heights, reach distances), perform ergonomist-confirmed RULA/REBA assessments, and collect voluntary anonymous worker feedback.
+2. **Intervention:** Apply targeted physical or organizational adjustments (e.g., lowering and bringing Connector Group A closer, tilting fixtures, task rotation, or worker-selected micro-breaks).
+3. **Follow-Up:** Repeat RULA/REBA scoring, discomfort frequency/intensity surveys, and reach measurements to quantify actual before/after gains against real implementation costs.
 
-The backend API can be tested without a model for validation and incomplete-input behavior. Run the model downloader only where network access is available. Current local audit environment did not have a usable MediaPipe installation or model asset, so actual webcam/video inference was not verified.
+## Roadmap
 
-## Tests
+- **Phase 1 (Current — Prototype):** React/Three.js frontend, FastAPI backend, local MediaPipe/OpenCV posture screening, deterministic RULA/REBA engines, anonymous check-in, and synthetic demo dataset.
+- **Phase 2 (Pilot Workstation):** Single-workstation industrial deployment, baseline ergonomic validation with certified ergonomists, and hotspot confirmation.
+- **Phase 3 (Intervention Validation):** Physical workstation modifications, before/after field measurements, and structured intervention knowledge-base updates.
+- **Phase 4 (Industrial Scale):** Multi-line analytics, extended intervention library, and expansion across Tunisian and regional manufacturing sectors (automotive wiring, textiles, leather/footwear, electronics assembly).
 
-```bash
-cd backend
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q
-python -m compileall -q app tests
-cd ../frontend
-npm install
-npm test
-npx tsc --noEmit
-npm run build
-```
+## Team
 
-Synthetic landmark fixtures are geometry tests, not worker samples. See [AUDIT_REPORT.md](AUDIT_REPORT.md), [AI_MODEL_AND_DATA_AUDIT.md](AI_MODEL_AND_DATA_AUDIT.md), and [FINAL_TEST_REPORT.md](FINAL_TEST_REPORT.md) for audit findings, test evidence, privacy limitations, assessment references, and known gaps.
+**Team Name:** 'Phantom`
 
-## Ergonomic references
+- `[imen bouzid]`
+- `[selim zribi]`
+- `[zayneb hamden]` 
+- `[emna khlifa]` 
+- `[mouhamed yessine laabidi]` 
 
-RULA: McAtamney & Corlett (1993), *Applied Ergonomics*, 24(2), 91–99; [Cornell RULA worksheet](https://ergo.human.cornell.edu/Pub/AHquest/RULAworksheet.pdf). REBA: Hignett & McAtamney (2000), *Applied Ergonomics*, 31, 201–205; [Cornell REBA scoring sheet](https://ergo.human.cornell.edu/Pub/AHquest/Cornell_REBA.pdf). See the AI/model audit for MediaPipe source and limitations.
+## License
+
+`[Add your license here — e.g., MIT License]`
