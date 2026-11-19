@@ -1,0 +1,1 @@
+{"root":["./src/AssessmentPage.tsx","./src/AutomaticPostureAssessment.tsx","./src/LegacyApp.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/services/api.ts","./src/store/appStore.ts","./src/types/models.ts","./src/utils/assessment.d.ts"],"version":"5.7.3"}
